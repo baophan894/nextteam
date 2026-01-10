@@ -12,9 +12,9 @@ const _inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "NEXT TEAM - Privacy Policy & Terms",
-  description: "Privacy Policy and Terms and Conditions for NEXT TEAM applications.",
-  generator: "nextteam.app",
+  title: "Control Solution - Your Software Development Partner",
+  description: "Control Solution is a network of connected, young and passionate software engineers. We simplify complexity and provide master control solutions for your business.",
+  generator: "controlsolution.com",
 }
 
 export default function RootLayout({
