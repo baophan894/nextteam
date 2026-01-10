@@ -18,7 +18,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white overflow-x-hidden">
       {/* Header Navigation */}
-      <header className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? 'bg-white shadow-lg py-3' : 'bg-transparent py-4'}`}>
+      <header className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? 'bg-orange-100 shadow-lg py-3' : 'bg-transparent py-4'}`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex justify-between items-center">
             <Link href="/" className={`text-2xl font-bold transition-colors duration-300 ${scrolled ? 'text-gray-900 hover:text-orange-600' : 'text-white hover:text-white/80'}`}>
