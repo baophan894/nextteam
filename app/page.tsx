@@ -62,7 +62,7 @@ export default function HomePage() {
                 Next Team
               </h1>
               <p className="text-white/90 text-lg leading-relaxed animate-slide-in-left animation-delay-100">
-                Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet.
+                Next Team partners with businesses to digitize workflows and build breakthrough technology products that optimize operational performance.
               </p>
               <div className="flex flex-wrap gap-4 pt-4 animate-slide-in-left animation-delay-200">
                 <Link
