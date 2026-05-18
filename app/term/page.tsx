@@ -48,7 +48,7 @@ export default function TermsPage() {
             <strong>NEXT TEAM</strong> accepts no liability for any loss, direct or indirect, you experience as a result of relying wholly on the functionality of the app.
           </p>
           <p className="mb-4">
-            The app is currently available on Android. The requirements for the system may change, and you'll need to download updates if you want to keep using the app. We may also wish to stop providing the app at any time without notice.
+            The app is currently available on mobile. The requirements for the system may change, and you'll need to download updates if you want to keep using the app. We may also wish to stop providing the app at any time without notice.
           </p>
         </div>
 
