@@ -52,6 +52,8 @@ Configure the server:
 ```env
 LEGAL_APPS_API_KEY=replace-with-a-secret
 LEGAL_SITE_URL=https://policy.nextteam.site
+# Added automatically after connecting a Public Vercel Blob store:
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
 Create `payload.json`:
@@ -99,7 +101,8 @@ npm run legal:create -- payload.json /path/to/app-icon.png
 ```
 
 Uploaded icons may be PNG, JPEG, WebP, GIF, or AVIF and are limited to 2 MB.
-The API stores runtime-created apps in `data/legal-apps.json`; the new legal
-URLs are available immediately without rebuilding. This file-backed storage is
-intended for a persistent Node/VPS deployment. Use database or object storage
-instead when deploying on a serverless platform such as Vercel.
+On Vercel, create a Public Blob store from the project's Storage tab and connect
+it to the project. Vercel injects `BLOB_READ_WRITE_TOKEN`; app JSON and uploaded
+icons are then persisted in Blob and survive deployments. Local development
+continues to use `data/legal-apps.json`. New legal URLs are available without
+rebuilding.

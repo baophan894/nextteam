@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 
+import { get as getBlob, list, put } from "@vercel/blob"
 import { z } from "zod"
 
 export type LegalLink = {
@@ -373,9 +374,22 @@ export function createLegalApps(
 export const legalApps = createLegalApps(legalAppInputs)
 
 const legalAppsDataFile = path.join(process.cwd(), "data", "legal-apps.json")
+const legalAppsBlobPrefix = "legal-apps/"
 let mutationQueue: Promise<void> = Promise.resolve()
 
-async function readStoredLegalAppInputs(): Promise<CreateLegalAppInput[]> {
+function usesBlobStorage() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+}
+
+function assertProductionStorageIsConfigured() {
+  if (process.env.VERCEL && !usesBlobStorage()) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is not configured. Connect a Public Vercel Blob store to this project.",
+    )
+  }
+}
+
+async function readLocalLegalAppInputs(): Promise<CreateLegalAppInput[]> {
   try {
     const contents = await readFile(legalAppsDataFile, "utf8")
     return z.array(createLegalAppInputSchema).parse(JSON.parse(contents))
@@ -385,14 +399,60 @@ async function readStoredLegalAppInputs(): Promise<CreateLegalAppInput[]> {
   }
 }
 
+async function readBlobInput(pathname: string): Promise<CreateLegalAppInput | undefined> {
+  const result = await getBlob(pathname, { access: "public" })
+  if (!result?.stream) return undefined
+
+  const value = await new Response(result.stream).json()
+  return createLegalAppInputSchema.parse(value)
+}
+
+async function readBlobLegalAppInputs(): Promise<CreateLegalAppInput[]> {
+  const inputs: CreateLegalAppInput[] = []
+  let cursor: string | undefined
+
+  do {
+    const result = await list({
+      prefix: legalAppsBlobPrefix,
+      limit: 1000,
+      cursor,
+    })
+    const pageInputs = await Promise.all(
+      result.blobs
+        .filter((blob) => blob.pathname.endsWith(".json"))
+        .map((blob) => readBlobInput(blob.pathname)),
+    )
+
+    inputs.push(...pageInputs.filter((input) => input !== undefined))
+    cursor = result.hasMore ? result.cursor : undefined
+  } while (cursor)
+
+  return inputs
+}
+
+async function readStoredLegalAppInputs(): Promise<CreateLegalAppInput[]> {
+  assertProductionStorageIsConfigured()
+  return usesBlobStorage() ? readBlobLegalAppInputs() : readLocalLegalAppInputs()
+}
+
 export async function getLegalApps(): Promise<Record<string, LegalApp>> {
   const storedInputs = await readStoredLegalAppInputs()
   return createLegalApps([...legalAppInputs, ...storedInputs])
 }
 
 export async function getLegalApp(slug: string): Promise<LegalApp | undefined> {
-  const apps = await getLegalApps()
-  return apps[slug]
+  assertProductionStorageIsConfigured()
+
+  if (usesBlobStorage()) {
+    const input = await readBlobInput(`${legalAppsBlobPrefix}${slug}.json`)
+    return input ? createLegalApp(input) : undefined
+  }
+
+  const localInputs = await readLocalLegalAppInputs()
+  const input = [...legalAppInputs, ...localInputs].find(
+    (candidate) => getSlug(candidate) === slug,
+  )
+  return input ? createLegalApp(input) : undefined
 }
 
 export async function getLegalAppSlugs(): Promise<string[]> {
@@ -410,15 +470,29 @@ function enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
 
 export function persistLegalApp(input: CreateLegalAppInput): Promise<LegalApp> {
   return enqueueMutation(async () => {
+    assertProductionStorageIsConfigured()
     const parsedInput = createLegalAppInputSchema.parse(input)
     const app = createLegalApp(parsedInput)
-    const existingApps = await getLegalApps()
+    const existingApp = await getLegalApp(app.slug)
 
-    if (existingApps[app.slug]) {
+    if (existingApp) {
       throw new Error(`An app with slug "${app.slug}" already exists`)
     }
 
-    const storedInputs = await readStoredLegalAppInputs()
+    if (usesBlobStorage()) {
+      await put(
+        `${legalAppsBlobPrefix}${app.slug}.json`,
+        `${JSON.stringify(parsedInput, null, 2)}\n`,
+        {
+          access: "public",
+          contentType: "application/json",
+          cacheControlMaxAge: 60,
+        },
+      )
+      return app
+    }
+
+    const storedInputs = await readLocalLegalAppInputs()
     const nextInputs = [...storedInputs, parsedInput]
     const temporaryFile = `${legalAppsDataFile}.${process.pid}.tmp`
 

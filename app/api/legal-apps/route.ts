@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { put } from "@vercel/blob"
 import { ZodError } from "zod"
 
 import {
@@ -36,13 +37,35 @@ function authorize(request: NextRequest) {
   }
 }
 
-async function iconToDataUrl(icon: File) {
+const ICON_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/avif": "avif",
+}
+
+async function iconToUrl(icon: File, slug: string) {
   if (!ALLOWED_ICON_TYPES.has(icon.type)) {
     throw new Error("Icon must be a PNG, JPEG, WebP, GIF, or AVIF image")
   }
 
   if (icon.size === 0 || icon.size > MAX_ICON_SIZE) {
     throw new Error("Icon must be larger than 0 bytes and no more than 2 MB")
+  }
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(
+      `legal-app-icons/${slug}-${Date.now()}.${ICON_EXTENSIONS[icon.type]}`,
+      icon,
+      {
+        access: "public",
+        addRandomSuffix: true,
+        contentType: icon.type,
+        cacheControlMaxAge: 31_536_000,
+      },
+    )
+    return blob.url
   }
 
   const bytes = Buffer.from(await icon.arrayBuffer())
@@ -75,7 +98,12 @@ async function parsePayload(request: NextRequest): Promise<CreateLegalAppPayload
   const payload = JSON.parse(data) as Record<string, unknown>
 
   if (icon instanceof File && icon.size > 0) {
-    payload.icon_url = await iconToDataUrl(icon)
+    const validatedPayload = createLegalAppPayloadSchema.parse({
+      ...payload,
+      icon_url: payload.icon_url || "pending-upload",
+    })
+    validatedPayload.icon_url = await iconToUrl(icon, validatedPayload.slug)
+    return validatedPayload
   }
 
   const parsedPayload = createLegalAppPayloadSchema.parse(payload)
@@ -135,7 +163,11 @@ export async function POST(request: NextRequest) {
     }
 
     const message = error instanceof Error ? error.message : "Unable to create app"
-    const status = message.includes("already exists") ? 409 : 400
+    const status = message.includes("already exists")
+      ? 409
+      : message.includes("BLOB_READ_WRITE_TOKEN")
+        ? 503
+        : 400
     return NextResponse.json({ error: message }, { status })
   }
 }
