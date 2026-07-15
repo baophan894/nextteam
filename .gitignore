@@ -20,6 +20,9 @@
 # production
 /build
 
+# legal apps created through the runtime API
+/data/legal-apps.json
+
 # misc
 .DS_Store
 *.pem
