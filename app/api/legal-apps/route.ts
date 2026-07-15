@@ -6,6 +6,7 @@ import {
   createLegalAppPayloadSchema,
   generateLegalAppInput,
   getLegalApps,
+  hasVercelBlobStorage,
   persistLegalApp,
   type CreateLegalAppPayload,
 } from "@/lib/legal-apps"
@@ -54,7 +55,7 @@ async function iconToUrl(icon: File, slug: string) {
     throw new Error("Icon must be larger than 0 bytes and no more than 2 MB")
   }
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  if (hasVercelBlobStorage()) {
     const blob = await put(
       `legal-app-icons/${slug}-${Date.now()}.${ICON_EXTENSIONS[icon.type]}`,
       icon,
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Unable to create app"
     const status = message.includes("already exists")
       ? 409
-      : message.includes("BLOB_READ_WRITE_TOKEN")
+      : message.includes("Vercel Blob storage is not configured")
         ? 503
         : 400
     return NextResponse.json({ error: message }, { status })

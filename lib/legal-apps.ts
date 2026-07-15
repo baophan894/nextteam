@@ -377,14 +377,16 @@ const legalAppsDataFile = path.join(process.cwd(), "data", "legal-apps.json")
 const legalAppsBlobPrefix = "legal-apps/"
 let mutationQueue: Promise<void> = Promise.resolve()
 
-function usesBlobStorage() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+export function hasVercelBlobStorage() {
+  return Boolean(
+    process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN,
+  )
 }
 
 function assertProductionStorageIsConfigured() {
-  if (process.env.VERCEL && !usesBlobStorage()) {
+  if (process.env.VERCEL && !hasVercelBlobStorage()) {
     throw new Error(
-      "BLOB_READ_WRITE_TOKEN is not configured. Connect a Public Vercel Blob store to this project.",
+      "Vercel Blob storage is not configured. Connect a Public Blob store to this project.",
     )
   }
 }
@@ -432,7 +434,9 @@ async function readBlobLegalAppInputs(): Promise<CreateLegalAppInput[]> {
 
 async function readStoredLegalAppInputs(): Promise<CreateLegalAppInput[]> {
   assertProductionStorageIsConfigured()
-  return usesBlobStorage() ? readBlobLegalAppInputs() : readLocalLegalAppInputs()
+  return hasVercelBlobStorage()
+    ? readBlobLegalAppInputs()
+    : readLocalLegalAppInputs()
 }
 
 export async function getLegalApps(): Promise<Record<string, LegalApp>> {
@@ -443,7 +447,7 @@ export async function getLegalApps(): Promise<Record<string, LegalApp>> {
 export async function getLegalApp(slug: string): Promise<LegalApp | undefined> {
   assertProductionStorageIsConfigured()
 
-  if (usesBlobStorage()) {
+  if (hasVercelBlobStorage()) {
     const input = await readBlobInput(`${legalAppsBlobPrefix}${slug}.json`)
     return input ? createLegalApp(input) : undefined
   }
@@ -479,7 +483,7 @@ export function persistLegalApp(input: CreateLegalAppInput): Promise<LegalApp> {
       throw new Error(`An app with slug "${app.slug}" already exists`)
     }
 
-    if (usesBlobStorage()) {
+    if (hasVercelBlobStorage()) {
       await put(
         `${legalAppsBlobPrefix}${app.slug}.json`,
         `${JSON.stringify(parsedInput, null, 2)}\n`,

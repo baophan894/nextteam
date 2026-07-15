@@ -52,8 +52,9 @@ Configure the server:
 ```env
 LEGAL_APPS_API_KEY=replace-with-a-secret
 LEGAL_SITE_URL=https://policy.nextteam.site
-# Added automatically after connecting a Public Vercel Blob store:
-BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+# Added automatically for new OIDC-based Blob connections:
+BLOB_STORE_ID=store_...
+# Legacy Blob connections may use BLOB_READ_WRITE_TOKEN instead.
 ```
 
 Create `payload.json`:
@@ -102,7 +103,8 @@ npm run legal:create -- payload.json /path/to/app-icon.png
 
 Uploaded icons may be PNG, JPEG, WebP, GIF, or AVIF and are limited to 2 MB.
 On Vercel, create a Public Blob store from the project's Storage tab and connect
-it to the project. Vercel injects `BLOB_READ_WRITE_TOKEN`; app JSON and uploaded
-icons are then persisted in Blob and survive deployments. Local development
-continues to use `data/legal-apps.json`. New legal URLs are available without
-rebuilding.
+it to the project. New connections use short-lived OIDC authentication and
+inject `BLOB_STORE_ID`; legacy connections may inject `BLOB_READ_WRITE_TOKEN`.
+App JSON and uploaded icons are persisted in Blob and survive deployments.
+Local development continues to use `data/legal-apps.json`. New legal URLs are
+available without rebuilding.
